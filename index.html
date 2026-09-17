@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cronômetro de Ciclo de Teste</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111729">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1420;
+    --panel:#161d2e;
+    --panel-2:#1d2740;
+    --panel-3:#242f4d;
+    --border:#2a3452;
+    --border-2:#3a4a75;
+    --text:#e8ecf7;
+    --text-dim:#9aa5c0;
+    --accent:#5b8cff;
+    --accent-2:#7c5bff;
+    --green:#3ecf8e;
+    --yellow:#f5c445;
+    --orange:#f59e42;
+    --red:#f5525c;
+    --radius:12px;
+    --shadow:0 4px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:linear-gradient(160deg,#0b0f1a,#111729 60%,#0b0f1a);
+    color:var(--text);
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  header{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:16px 32px;
+    border-bottom:1px solid var(--border);
+    background:rgba(15,20,32,.7);
+    backdrop-filter:blur(6px);
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  .header-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+  .header-left{display:flex;align-items:center;gap:24px;flex-wrap:wrap;}
+  header h1{
+    font-size:20px;
+    margin:0;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  header h1 span.icon{font-size:22px;}
+  .view-tabs{display:flex;gap:6px;background:var(--panel-2);padding:4px;border-radius:10px;border:1px solid var(--border);}
+  .view-tab-btn{
+    background:transparent;color:var(--text-dim);border:none;
+    padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;
+  }
+  .view-tab-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .project-bar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    background:var(--panel-3);border:1px solid var(--border-2);
+    border-radius:10px;padding:8px 12px;
+  }
+  .project-bar label{font-size:12px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+  .project-bar select{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;min-width:160px;
+  }
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border:none;
+    border-radius:8px;
+    padding:9px 16px;
+    font-size:13px;
+    font-weight:600;
+    transition:transform .1s ease, filter .15s ease;
+  }
+  button:active{transform:scale(.96);}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;}
+  .btn-primary:hover{filter:brightness(1.1);}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{background:#25304d;}
+  .btn-green{background:var(--green);color:#08281a;}
+  .btn-yellow{background:var(--yellow);color:#3a2c00;}
+  .btn-red{background:var(--red);color:#3a0a0d;}
+  .btn-sm{padding:6px 12px;font-size:12px;}
+  main{
+    max-width:1240px;
+    margin:0 auto;
+    padding:28px 24px;
+  }
+  #viewPainel{display:flex;flex-direction:column;gap:20px;}
+  #sprintsContainer{display:flex;flex-direction:column;gap:24px;}
+  .empty-state{
+    text-align:center;
+    color:var(--text-dim);
+    padding:60px 20px;
+    border:1px dashed var(--border);
+    border-radius:var(--radius);
+  }
+  .empty-state-sm{
+    text-align:center;
+    color:var(--text-dim);
+    padding:26px 16px;
+    border:1px dashed var(--border);
+    border-radius:var(--radius);
+    font-size:13px;
+  }
+
+  /* Search bar (Painel) */
+  .search-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .search-bar input[type=text]{
+    flex:1;min-width:220px;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:10px 14px;font-size:13px;
+  }
+
+  /* Sprint (top level) */
+  .sprint{
+    background:linear-gradient(180deg, rgba(91,140,255,.06), rgba(124,91,255,.02));
+    border:1px solid var(--border-2);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .sprint-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 22px;
+    background:var(--panel-3);
+    gap:12px;
+    flex-wrap:wrap;
+    border-bottom:1px solid var(--border-2);
+    cursor:pointer;
+    user-select:none;
+  }
+  .sprint-header:hover{background:#2a355a;}
+  .sprint-header .sprint-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .sprint-header .sprint-title .tag{
+    font-size:10px;text-transform:uppercase;letter-spacing:1px;
+    background:rgba(91,140,255,.18);color:var(--accent);
+    padding:3px 8px;border-radius:999px;font-weight:700;
+  }
+  .sprint-header input.sprint-name{
+    background:transparent;
+    border:none;
+    color:var(--text);
+    font-size:19px;
+    font-weight:800;
+    outline:none;
+    border-bottom:1px solid transparent;
+    padding:2px 4px;
+    min-width:140px;
+  }
+  .sprint-header input.sprint-name:focus{border-bottom:1px solid var(--accent);}
+  .sprint-header input.sprint-name, .card-header input.card-name{cursor:text;}
+  .sprint-actions button, .card-actions button{cursor:pointer;}
+  .sprint-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .sprint-body{
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  .collapse-icon{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:22px;height:22px;border-radius:6px;
+    color:var(--text-dim);font-size:13px;
+    background:rgba(255,255,255,.06);
+    flex-shrink:0;
+  }
+  .sprint-header:hover .collapse-icon, .card-header:hover .collapse-icon{color:var(--text);background:rgba(255,255,255,.12);}
+  .count-hint{font-size:12px;color:var(--text-dim);font-weight:500;}
+
+  /* Card (nested inside sprint) */
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 18px;
+    background:var(--panel-2);
+    gap:12px;
+    flex-wrap:wrap;
+    cursor:pointer;
+    user-select:none;
+  }
+  .card-header:hover{background:#243055;}
+  .card-header-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .card-header input.card-name{
+    background:transparent;
+    border:none;
+    color:var(--text);
+    font-size:15px;
+    font-weight:700;
+    outline:none;
+    border-bottom:1px solid transparent;
+    padding:2px 4px;
+    min-width:120px;
+  }
+  .card-header input.card-name:focus{border-bottom:1px solid var(--accent);}
+  .card-body{padding:18px;display:flex;flex-direction:column;gap:20px;}
+  .timer-box{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .timer-display{
+    font-family:'Consolas','Courier New',monospace;
+    font-size:32px;
+    font-weight:700;
+    letter-spacing:2px;
+    color:var(--accent);
+  }
+  .timer-status{
+    font-size:12px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:1px;
+    margin-top:4px;
+  }
+  .timer-controls{display:flex;gap:10px;flex-wrap:wrap;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;
+    color:var(--text-dim);
+    font-weight:600;
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+    text-transform:uppercase;
+    font-size:11px;
+    letter-spacing:.5px;
+  }
+  tbody td{
+    padding:10px 12px;
+    border-bottom:1px solid rgba(255,255,255,.04);
+  }
+  tbody tr:hover{background:rgba(255,255,255,.02);}
+  .badge{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:700;
+    margin-right:4px;
+  }
+  .badge-critico{background:rgba(245,82,92,.15);color:var(--red);}
+  .badge-bloqueado{background:rgba(245,158,66,.15);color:var(--orange);}
+  .badge-medio{background:rgba(245,196,69,.15);color:var(--yellow);}
+  .badge-baixo{background:rgba(62,207,142,.15);color:var(--green);}
+  .charts-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+  @media (max-width:900px){
+    .charts-grid{grid-template-columns:1fr;}
+  }
+  .chart-wrap{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    height:300px;
+    display:flex;
+    flex-direction:column;
+  }
+  .chart-wrap canvas{flex:1;min-height:0;}
+  .section-title{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.8px;
+    color:var(--text-dim);
+    font-weight:700;
+    margin-bottom:10px;
+  }
+  .card-actions{display:flex;gap:8px;}
+
+  /* Tabelas view */
+  #viewTabelas{display:flex;flex-direction:column;}
+  .filters-toolbar{
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;margin-bottom:20px;
+  }
+  .filters-toolbar input, .filters-toolbar select{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:9px 12px;font-size:13px;
+  }
+  .filters-toolbar select{min-width:170px;}
+  .filters-toolbar input[type=text]{flex:1;min-width:200px;}
+  .filters-toolbar input[type=number]{width:140px;}
+  .table-block{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px;margin:16px 0;
+  }
+  .table-block-title{
+    font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text);
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    cursor:pointer;user-select:none;
+    padding:4px 8px;margin-left:-8px;border-radius:8px;
+  }
+  .table-block-title:hover{background:rgba(255,255,255,.05);}
+  .table-block-title .crumb-sprint{color:var(--accent);}
+  .table-block-title .crumb-sep{color:var(--text-dim);}
+  .sprint-table-group{
+    background:linear-gradient(180deg, rgba(91,140,255,.06), rgba(124,91,255,.02));
+    border:1px solid var(--border-2);
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:24px;
+  }
+  .sprint-table-group-title{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    font-size:16px;font-weight:800;margin-bottom:14px;
+    cursor:pointer;user-select:none;
+    padding:6px 8px;margin-left:-8px;border-radius:8px;
+  }
+  .sprint-table-group-title:hover{background:rgba(255,255,255,.05);}
+  table.sprint-summary-table{margin-bottom:4px;}
+  table.sprint-summary-table tfoot td{
+    font-weight:700;
+    border-top:2px solid var(--border-2);
+    border-bottom:none;
+    background:rgba(255,255,255,.03);
+    color:var(--text);
+  }
+
+  /* Modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(5,8,15,.65);
+    display:none;align-items:center;justify-content:center;z-index:100;
+    padding:16px;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    width:100%;max-width:420px;
+    padding:24px;
+    box-shadow:var(--shadow);
+  }
+  .modal h2{margin:0 0 4px;font-size:18px;}
+  .modal p.sub{margin:0 0 18px;color:var(--text-dim);font-size:13px;}
+  .field-row{display:grid;grid-template-columns:1fr 90px;align-items:center;gap:10px;margin-bottom:12px;}
+  .field-row label{font-size:13px;display:flex;align-items:center;gap:8px;}
+  .field-row input{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:14px;
+    width:100%;
+  }
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .dot-critico{background:var(--red);}
+  .dot-bloqueado{background:var(--orange);}
+  .dot-medio{background:var(--yellow);}
+  .dot-baixo{background:var(--green);}
+  hr.sep{border:none;border-top:1px solid var(--border);margin:16px 0;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+  .hidden{display:none !important;}
+  input[type=file]{display:none;}
+  .storage-note{font-size:11px;color:var(--text-dim);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <div class="header-left">
+      <h1><span class="icon">⏱️</span> Cronômetro de Ciclo de Teste</h1>
+      <div class="view-tabs">
+        <button class="view-tab-btn active" id="tabPainel" data-view="painel">📋 Painel</button>
+        <button class="view-tab-btn" id="tabTabelas" data-view="tabelas">📊 Tabelas</button>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-ghost" id="btnNotify">🔔 Ativar notificações</button>
+      <button class="btn-ghost" id="btnExport">Exportar JSON</button>
+      <button class="btn-ghost" id="btnImportTrigger">Importar JSON</button>
+      <input type="file" id="btnImport" accept="application/json">
+    </div>
+  </div>
+  <div class="header-row">
+    <div class="project-bar">
+      <label>📁 Projeto</label>
+      <select id="projectSelect"></select>
+      <button class="btn-ghost btn-sm" id="btnRenameProject">✎ Renomear</button>
+      <button class="btn-red btn-sm" id="btnDeleteProject">Excluir</button>
+      <button class="btn-primary btn-sm" id="btnNewProject">+ Novo Projeto</button>
+    </div>
+    <button class="btn-primary" id="btnNewSprint">+ Nova Sprint</button>
+  </div>
+</header>
+
+<main>
+  <div id="viewPainel">
+    <div class="search-bar">
+      <input type="text" id="mainSearch" placeholder="🔍 Buscar por nome de sprint ou card...">
+      <button class="btn-ghost btn-sm" id="btnExpandAll">⊞ Expandir Tudo</button>
+      <button class="btn-ghost btn-sm" id="btnCollapseAll">⊟ Recolher Tudo</button>
+    </div>
+    <div id="sprintsContainer"></div>
+  </div>
+
+  <div id="viewTabelas" class="hidden">
+    <div class="filters-toolbar">
+      <input type="text" id="tblSearch" placeholder="🔍 Buscar por sprint ou card...">
+      <select id="tblSprintFilter"><option value="">Todas as Sprints</option></select>
+      <select id="tblCardFilter"><option value="">Todos os Cards</option></select>
+      <input type="number" min="1" id="tblCycleFilter" placeholder="Nº do ciclo">
+      <button class="btn-ghost btn-sm" id="btnClearFilters">Limpar filtros</button>
+    </div>
+    <div id="tablesResult"></div>
+  </div>
+</main>
+
+<!-- Modal: finalizar ciclo -->
+<div class="overlay" id="finishOverlay">
+  <div class="modal">
+    <h2>Finalizar Ciclo</h2>
+    <p class="sub">Informe o que foi encontrado neste ciclo antes de fechá-lo.</p>
+
+    <div class="section-title">Bugs por prioridade</div>
+    <div class="field-row"><label><span class="dot dot-critico"></span>Crítico</label><input type="number" min="0" value="0" id="inCritico"></div>
+    <div class="field-row"><label><span class="dot dot-bloqueado"></span>Bloqueado</label><input type="number" min="0" value="0" id="inBloqueado"></div>
+    <div class="field-row"><label><span class="dot dot-medio"></span>Médio</label><input type="number" min="0" value="0" id="inMedio"></div>
+    <div class="field-row"><label><span class="dot dot-baixo"></span>Baixo</label><input type="number" min="0" value="0" id="inBaixo"></div>
+
+    <hr class="sep">
+    <div class="field-row"><label>Melhorias encontradas</label><input type="number" min="0" value="0" id="inMelhorias"></div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="btnCancelFinish">Cancelar</button>
+      <button class="btn-primary" id="btnConfirmFinish">Salvar Ciclo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============== Persistência (IndexedDB, com fallback em localStorage) ==============
+const DB_NAME = 'cicloTesteDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'state';
+const STATE_KEY = 'main';
+const FALLBACK_KEY = 'cicloTesteApp_v3_fallback';
+const LEGACY_KEY_V2 = 'cicloTesteApp_v2';
+
+let storageAvailable = true;
+let state = { projects: [], currentProjectId: null };
+let charts = {};
+let charts2 = {};
+let finishingContext = null;
+let currentView = 'painel';
+let mainSearchTerm = '';
+let tblFilters = { search:'', sprintId:'', cardId:'', cycle:'' };
+let tblCollapsedSprints = new Set();
+let tblCollapsedCards = new Set();
+let notifyIntervals = {};
+const NOTIFY_INTERVAL_MS = 20 * 60 * 1000;
+
+function uid(){ return 'id-' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+function openDB(){
+  return new Promise((resolve, reject) => {
+    if(!('indexedDB' in window)){ reject(new Error('IndexedDB não suportado')); return; }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function loadStateFromDB(){
+  try{
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(STATE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }catch(e){
+    console.warn('IndexedDB indisponível para leitura.', e);
+    return null;
+  }
+}
+
+async function saveStateToDB(){
+  try{
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).put(JSON.parse(JSON.stringify(state)), STATE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    return true;
+  }catch(e){
+    console.warn('Falha ao salvar no IndexedDB.', e);
+    return false;
+  }
+}
+
+function saveState(){
+  saveStateToDB().then(ok => { storageAvailable = ok || storageAvailable; });
+  try{ localStorage.setItem(FALLBACK_KEY, JSON.stringify(state)); }catch(e){ /* best-effort */ }
+}
+
+function newProjectObj(name, sprints){
+  return { id: uid(), name: name || 'Projeto 1', sprints: sprints || [] };
+}
+
+async function initApp(){
+  let loaded = await loadStateFromDB();
+
+  if(!loaded){
+    try{
+      const raw = localStorage.getItem(FALLBACK_KEY);
+      if(raw) loaded = JSON.parse(raw);
+    }catch(e){ /* ignore */ }
+  }
+
+  if(!loaded){
+    let migratedSprints = [];
+    try{
+      const rawOld = localStorage.getItem(LEGACY_KEY_V2);
+      if(rawOld){
+        const old = JSON.parse(rawOld);
+        if(old && Array.isArray(old.sprints)) migratedSprints = old.sprints;
+      }
+    }catch(e){ /* ignore */ }
+    const p = newProjectObj(migratedSprints.length ? 'Projeto Migrado' : 'Projeto 1', migratedSprints);
+    loaded = { projects: [p], currentProjectId: p.id };
+  }
+
+  if(!Array.isArray(loaded.projects) || loaded.projects.length === 0){
+    const p = newProjectObj('Projeto 1', []);
+    loaded = { projects: [p], currentProjectId: p.id };
+  }
+  if(!loaded.currentProjectId || !loaded.projects.some(p => p.id === loaded.currentProjectId)){
+    loaded.currentProjectId = loaded.projects[0].id;
+  }
+
+  state = loaded;
+  saveState();
+  renderProjectSelect();
+  render();
+  updateNotifyButton();
+  resumeNotificationsForRunningCycles();
+}
+
+// ============== Notificações ==============
+function updateNotifyButton(){
+  const btn = document.getElementById('btnNotify');
+  if(!('Notification' in window)){ btn.textContent = '🔕 Sem suporte'; btn.disabled = true; return; }
+  if(Notification.permission === 'granted'){ btn.textContent = '🔔 Notificações ativas'; }
+  else if(Notification.permission === 'denied'){ btn.textContent = '🔕 Notificações bloqueadas'; }
+  else{ btn.textContent = '🔔 Ativar notificações'; }
+}
+
+function requestNotificationPermission(){
+  if(!('Notification' in window)){ alert('Seu navegador não suporta notificações.'); return; }
+  Notification.requestPermission().then(() => updateNotifyButton());
+}
+
+function notifyCardRunning(card){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  try{
+    new Notification('⏱️ Ciclo em andamento', {
+      body: `"${card.name}" está rodando há ${fmtTime(getElapsed(card))}. Não esqueça de finalizar!`,
+      tag: `ciclo-${card.id}`,
+      icon: 'icon-192.png'
+    });
+  }catch(e){ /* ignore */ }
+}
+
+function startCycleNotifications(card){
+  stopCycleNotifications(card.id);
+  if(Notification.permission !== 'granted') return;
+  notifyCardRunning(card);
+  notifyIntervals[card.id] = setInterval(() => notifyCardRunning(card), NOTIFY_INTERVAL_MS);
+}
+
+function stopCycleNotifications(cardId){
+  if(notifyIntervals[cardId]){ clearInterval(notifyIntervals[cardId]); delete notifyIntervals[cardId]; }
+}
+
+function resumeNotificationsForRunningCycles(){
+  if(Notification.permission !== 'granted') return;
+  state.projects.forEach(project => {
+    project.sprints.forEach(sprint => {
+      sprint.cards.forEach(card => {
+        if(card.active && card.active.status === 'running') startCycleNotifications(card);
+      });
+    });
+  });
+}
+
+// ============== Modelo de dados ==============
+function getCurrentProject(){
+  return state.projects.find(p => p.id === state.currentProjectId) || state.projects[0];
+}
+
+function newSprint(project){
+  return { id: uid(), name: 'Sprint ' + (project.sprints.length+1), collapsed:false, cards: [] };
+}
+function newCard(sprint){
+  return { id: uid(), name: 'Card ' + (sprint.cards.length+1), cycles: [], active: null, collapsed:false };
+}
+
+function findSprint(sprintId){
+  const project = getCurrentProject();
+  return project ? project.sprints.find(s => s.id === sprintId) : null;
+}
+function findCard(sprintId, cardId){
+  const sprint = findSprint(sprintId);
+  return sprint ? sprint.cards.find(c => c.id === cardId) : null;
+}
+
+function fmtTime(ms){
+  const totalSec = Math.floor(ms/1000);
+  const h = String(Math.floor(totalSec/3600)).padStart(2,'0');
+  const m = String(Math.floor((totalSec%3600)/60)).padStart(2,'0');
+  const s = String(totalSec%60).padStart(2,'0');
+  return `${h}:${m}:${s}`;
+}
+
+function getElapsed(card){
+  if(!card.active) return 0;
+  if(card.active.status === 'running'){
+    return card.active.accumulatedMs + (Date.now() - card.active.startedAt);
+  }
+  return card.active.accumulatedMs;
+}
+
+function bugTotal(c){ return c.bugs.critico + c.bugs.bloqueado + c.bugs.medio + c.bugs.baixo; }
+
+function getVisibleCards(sprint, term){
+  if(!term) return sprint.cards;
+  const sprintMatches = sprint.name.toLowerCase().includes(term);
+  if(sprintMatches) return sprint.cards;
+  return sprint.cards.filter(c => c.name.toLowerCase().includes(term));
+}
+
+// ============== Ações: Projeto ==============
+function renderProjectSelect(){
+  const sel = document.getElementById('projectSelect');
+  sel.innerHTML = state.projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  sel.value = state.currentProjectId;
+  document.getElementById('btnDeleteProject').disabled = state.projects.length <= 1;
+}
+
+function addProject(){
+  const p = newProjectObj('Projeto ' + (state.projects.length+1), []);
+  state.projects.push(p);
+  state.currentProjectId = p.id;
+  saveState();
+  renderProjectSelect();
+  render();
+}
+
+function switchProject(projectId){
+  state.currentProjectId = projectId;
+  mainSearchTerm = '';
+  document.getElementById('mainSearch').value = '';
+  tblFilters = { search:'', sprintId:'', cardId:'', cycle:'' };
+  render();
+}
+
+function renameProject(name){
+  const p = getCurrentProject();
+  if(p){ p.name = name || p.name; saveState(); renderProjectSelect(); }
+}
+
+function deleteCurrentProject(){
+  if(state.projects.length <= 1) return;
+  const p = getCurrentProject();
+  if(!p) return;
+  if(!confirm(`Excluir o projeto "${p.name}" e TODAS as Sprints/Cards/Ciclos dentro dele?`)) return;
+  p.sprints.forEach(sprint => {
+    sprint.cards.forEach(c => {
+      stopCycleNotifications(c.id);
+      if(charts[c.id]){ charts[c.id].destroy(); delete charts[c.id]; }
+      if(charts2[c.id]){ charts2[c.id].destroy(); delete charts2[c.id]; }
+    });
+    const sprintKey = `sprint-${sprint.id}`;
+    if(charts[sprintKey]){ charts[sprintKey].destroy(); delete charts[sprintKey]; }
+    if(charts2[sprintKey]){ charts2[sprintKey].destroy(); delete charts2[sprintKey]; }
+  });
+  state.projects = state.projects.filter(x => x.id !== p.id);
+  state.currentProjectId = state.projects[0].id;
+  saveState();
+  renderProjectSelect();
+  render();
+}
+
+// ---------- Actions: Sprint ----------
+function addSprint(){
+  const project = getCurrentProject();
+  project.sprints.push(newSprint(project));
+  saveState();
+  render();
+}
+
+function deleteSprint(sprintId){
+  if(!confirm('Excluir esta Sprint e todos os cards/ciclos dentro dela?')) return;
+  const sprint = findSprint(sprintId);
+  if(sprint){
+    sprint.cards.forEach(c => {
+      stopCycleNotifications(c.id);
+      if(charts[c.id]){ charts[c.id].destroy(); delete charts[c.id]; }
+      if(charts2[c.id]){ charts2[c.id].destroy(); delete charts2[c.id]; }
+    });
+    const sprintKey = `sprint-${sprint.id}`;
+    if(charts[sprintKey]){ charts[sprintKey].destroy(); delete charts[sprintKey]; }
+    if(charts2[sprintKey]){ charts2[sprintKey].destroy(); delete charts2[sprintKey]; }
+  }
+  const project = getCurrentProject();
+  project.sprints = project.sprints.filter(s => s.id !== sprintId);
+  saveState();
+  render();
+}
+
+function renameSprint(sprintId, name){
+  const sprint = findSprint(sprintId);
+  if(sprint){ sprint.name = name || sprint.name; saveState(); }
+}
+
+function toggleSprintCollapse(sprintId){
+  const sprint = findSprint(sprintId);
+  if(sprint){ sprint.collapsed = !sprint.collapsed; saveState(); render(); }
+}
+
+// ---------- Actions: Card ----------
+function addCard(sprintId){
+  const sprint = findSprint(sprintId);
+  if(!sprint) return;
+  sprint.cards.push(newCard(sprint));
+  saveState();
+  render();
+}
+
+function deleteCard(sprintId, cardId){
+  if(!confirm('Excluir este card e todos os ciclos dele?')) return;
+  const sprint = findSprint(sprintId);
+  if(!sprint) return;
+  stopCycleNotifications(cardId);
+  sprint.cards = sprint.cards.filter(c => c.id !== cardId);
+  if(charts[cardId]){ charts[cardId].destroy(); delete charts[cardId]; }
+  if(charts2[cardId]){ charts2[cardId].destroy(); delete charts2[cardId]; }
+  saveState();
+  render();
+}
+
+function renameCard(sprintId, cardId, name){
+  const card = findCard(sprintId, cardId);
+  if(card){ card.name = name || card.name; saveState(); }
+}
+
+function toggleCardCollapse(sprintId, cardId){
+  const card = findCard(sprintId, cardId);
+  if(card){ card.collapsed = !card.collapsed; saveState(); render(); }
+}
+
+function setAllCollapsed(collapsed){
+  const project = getCurrentProject();
+  project.sprints.forEach(sprint => {
+    sprint.collapsed = collapsed;
+    sprint.cards.forEach(card => { card.collapsed = collapsed; });
+  });
+  saveState();
+  render();
+}
+
+// ---------- Actions: Cycle ----------
+function startCycle(sprintId, cardId){
+  const card = findCard(sprintId, cardId);
+  if(!card || card.active) return;
+  card.active = { startedAt: Date.now(), accumulatedMs: 0, status: 'running' };
+  saveState();
+  render();
+  startCycleNotifications(card);
+}
+
+function pauseResume(sprintId, cardId){
+  const card = findCard(sprintId, cardId);
+  if(!card || !card.active) return;
+  if(card.active.status === 'running'){
+    card.active.accumulatedMs += Date.now() - card.active.startedAt;
+    card.active.status = 'paused';
+    stopCycleNotifications(card.id);
+  } else {
+    card.active.startedAt = Date.now();
+    card.active.status = 'running';
+    startCycleNotifications(card);
+  }
+  saveState();
+  render();
+}
+
+function openFinishModal(sprintId, cardId){
+  const card = findCard(sprintId, cardId);
+  if(!card || !card.active) return;
+  finishingContext = { sprintId, cardId };
+  ['inCritico','inBloqueado','inMedio','inBaixo','inMelhorias'].forEach(id=>{
+    document.getElementById(id).value = 0;
+  });
+  document.getElementById('finishOverlay').classList.add('open');
+}
+
+function closeFinishModal(){
+  finishingContext = null;
+  document.getElementById('finishOverlay').classList.remove('open');
+}
+
+function confirmFinish(){
+  if(!finishingContext) return;
+  const card = findCard(finishingContext.sprintId, finishingContext.cardId);
+  if(!card || !card.active) { closeFinishModal(); return; }
+
+  stopCycleNotifications(card.id);
+  const elapsedMs = getElapsed(card);
+  const bugs = {
+    critico: parseInt(document.getElementById('inCritico').value)||0,
+    bloqueado: parseInt(document.getElementById('inBloqueado').value)||0,
+    medio: parseInt(document.getElementById('inMedio').value)||0,
+    baixo: parseInt(document.getElementById('inBaixo').value)||0,
+  };
+  const melhorias = parseInt(document.getElementById('inMelhorias').value)||0;
+
+  card.cycles.push({
+    id: uid(),
+    elapsedMs,
+    bugs,
+    melhorias,
+    finishedAt: Date.now()
+  });
+  card.active = null;
+
+  saveState();
+  closeFinishModal();
+  render();
+}
+
+// ---------- Export / Import ----------
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `ciclo-teste-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importJSON(file){
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const data = JSON.parse(e.target.result);
+      let newState;
+      if(data && Array.isArray(data.projects)){
+        newState = data;
+      } else if(data && Array.isArray(data.sprints)){
+        const p = newProjectObj('Projeto Importado', data.sprints);
+        newState = { projects: [p], currentProjectId: p.id };
+      } else {
+        throw new Error('Formato inválido');
+      }
+      if(!confirm('Importar este arquivo vai SUBSTITUIR todos os dados atuais (todos os projetos). Continuar?')) return;
+
+      Object.values(notifyIntervals).forEach(clearInterval);
+      notifyIntervals = {};
+
+      if(!Array.isArray(newState.projects) || newState.projects.length === 0){
+        newState.projects = [newProjectObj('Projeto 1', [])];
+      }
+      if(!newState.currentProjectId || !newState.projects.some(p=>p.id===newState.currentProjectId)){
+        newState.currentProjectId = newState.projects[0].id;
+      }
+
+      state = newState;
+      saveState();
+      renderProjectSelect();
+      render();
+      resumeNotificationsForRunningCycles();
+    }catch(err){
+      alert('Não foi possível importar o arquivo: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ---------- View switching ----------
+function switchView(view){
+  currentView = view;
+  document.getElementById('viewPainel').classList.toggle('hidden', view !== 'painel');
+  document.getElementById('viewTabelas').classList.toggle('hidden', view !== 'tabelas');
+  document.getElementById('tabPainel').classList.toggle('active', view === 'painel');
+  document.getElementById('tabTabelas').classList.toggle('active', view === 'tabelas');
+  if(view === 'tabelas') renderTablesView();
+}
+
+// ---------- Rendering: Painel ----------
+function render(){
+  const project = getCurrentProject();
+  const container = document.getElementById('sprintsContainer');
+  container.innerHTML = '';
+
+  if(!project || project.sprints.length === 0){
+    container.innerHTML = `<div class="empty-state">Nenhuma Sprint ainda neste projeto. Clique em <b>+ Nova Sprint</b> para começar.</div>`;
+  } else {
+    const term = mainSearchTerm;
+    let anyVisible = false;
+
+    project.sprints.forEach(sprint => {
+      const visibleCards = getVisibleCards(sprint, term);
+      if(term && visibleCards.length === 0) return;
+      anyVisible = true;
+
+      const sprintEl = document.createElement('div');
+      sprintEl.className = 'sprint';
+      sprintEl.dataset.sprintId = sprint.id;
+
+      sprintEl.innerHTML = `
+        <div class="sprint-header" data-role="toggle-sprint" title="Clique para recolher/expandir a Sprint">
+          <div class="sprint-title">
+            <span class="collapse-icon">${sprint.collapsed ? '▸' : '▾'}</span>
+            <span class="tag">Sprint</span>
+            <input class="sprint-name" value="${escapeHtml(sprint.name)}" data-role="rename-sprint">
+            <span class="count-hint">(${sprint.cards.length} card${sprint.cards.length!==1?'s':''})</span>
+          </div>
+          <div class="sprint-actions">
+            <button class="btn-primary btn-sm" data-role="add-card">+ Novo Card</button>
+            <button class="btn-red btn-sm" data-role="delete-sprint">Excluir Sprint</button>
+          </div>
+        </div>
+        <div class="sprint-body ${sprint.collapsed?'hidden':''}" data-role="cards-wrap"></div>
+      `;
+      container.appendChild(sprintEl);
+
+      if(sprint.collapsed) return;
+
+      const cardsWrap = sprintEl.querySelector('[data-role="cards-wrap"]');
+      if(visibleCards.length === 0){
+        cardsWrap.innerHTML = `<div class="empty-state-sm">Nenhum card nesta Sprint ainda. Clique em <b>+ Novo Card</b>.</div>`;
+        return;
+      }
+
+      visibleCards.forEach(card => {
+        cardsWrap.appendChild(buildCardEl(sprint, card));
+      });
+    });
+
+    if(term && !anyVisible){
+      container.innerHTML = `<div class="empty-state">Nenhuma Sprint ou Card encontrado para "<b>${escapeHtml(mainSearchTerm)}</b>".</div>`;
+    }
+  }
+
+  if(currentView === 'tabelas') renderTablesView();
+}
+
+function buildCardEl(sprint, card){
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.dataset.cardId = card.id;
+  el.dataset.sprintId = sprint.id;
+
+  const elapsed = getElapsed(card);
+  const isRunning = card.active && card.active.status === 'running';
+  const isPaused = card.active && card.active.status === 'paused';
+  const isIdle = !card.active;
+
+  const header = `
+    <div class="card-header" data-role="toggle-card" title="Clique para recolher/expandir o Card">
+      <div class="card-header-left">
+        <span class="collapse-icon">${card.collapsed ? '▸' : '▾'}</span>
+        <input class="card-name" value="${escapeHtml(card.name)}" data-role="rename-card">
+        <span class="count-hint">(${card.cycles.length} ciclo${card.cycles.length!==1?'s':''})</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn-red btn-sm" data-role="delete-card">Excluir Card</button>
+      </div>
+    </div>
+  `;
+
+  const body = card.collapsed ? '' : `
+    <div class="card-body">
+      <div class="timer-box">
+        <div>
+          <div class="timer-display" data-role="timer-display">${fmtTime(elapsed)}</div>
+          <div class="timer-status">${isRunning?'Rodando':isPaused?'Pausado':'Parado · pronto para novo ciclo'}</div>
+        </div>
+        <div class="timer-controls">
+          ${isIdle ? `<button class="btn-primary" data-role="start">▶ Iniciar Ciclo</button>` : ''}
+          ${isRunning ? `<button class="btn-yellow" data-role="pause">⏸ Pausar</button>` : ''}
+          ${isPaused ? `<button class="btn-green" data-role="resume">▶ Retomar</button>` : ''}
+          ${(isRunning||isPaused) ? `<button class="btn-ghost" data-role="finish">⏹ Finalizar Ciclo</button>` : ''}
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Ciclos do Card</div>
+        ${renderTable(card)}
+      </div>
+    </div>
+  `;
+
+  el.innerHTML = header + body;
+  return el;
+}
+
+function renderTable(card){
+  if(card.cycles.length === 0){
+    return `<div class="empty-state-sm">Nenhum ciclo finalizado ainda.</div>`;
+  }
+  const rows = card.cycles.map((c,i) => `
+    <tr>
+      <td>Ciclo ${i+1}</td>
+      <td>${fmtTime(c.elapsedMs)}</td>
+      <td>
+        ${c.bugs.critico? `<span class="badge badge-critico">Crít ${c.bugs.critico}</span>`:''}
+        ${c.bugs.bloqueado? `<span class="badge badge-bloqueado">Bloq ${c.bugs.bloqueado}</span>`:''}
+        ${c.bugs.medio? `<span class="badge badge-medio">Méd ${c.bugs.medio}</span>`:''}
+        ${c.bugs.baixo? `<span class="badge badge-baixo">Baixo ${c.bugs.baixo}</span>`:''}
+        ${bugTotal(c)===0? '<span style="color:var(--text-dim)">0</span>':''}
+        <span style="color:var(--text-dim);margin-left:6px;">(total ${bugTotal(c)})</span>
+      </td>
+      <td>${c.melhorias}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <table>
+      <thead>
+        <tr><th>Ciclo</th><th>Tempo do Ciclo</th><th>Bugs Abertos</th><th>Melhorias Abertas</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function buildPriorityChart(canvas, key, labels, cycles){
+  if(!canvas) return;
+  if(charts[key]){ charts[key].destroy(); }
+
+  let cumCritico = 0;
+  const criticoLevel = cycles.map(c => { cumCritico += c.bugs.critico; return cumCritico; });
+
+  charts[key] = new Chart(canvas, {
+    data: {
+      labels,
+      datasets: [
+        { type:'bar', label:'Crítico', data: cycles.map(c=>c.bugs.critico), backgroundColor:'#f5525c' },
+        { type:'bar', label:'Bloqueado', data: cycles.map(c=>c.bugs.bloqueado), backgroundColor:'#f59e42' },
+        { type:'bar', label:'Médio', data: cycles.map(c=>c.bugs.medio), backgroundColor:'#f5c445' },
+        { type:'bar', label:'Baixo', data: cycles.map(c=>c.bugs.baixo), backgroundColor:'#3ecf8e' },
+        { type:'line', label:'Nível de Críticos Abertos (acumulado)', data: criticoLevel, borderColor:'#5b8cff', backgroundColor:'#5b8cff', yAxisID:'y1', tension:.3, pointRadius:4, borderWidth:2 },
+      ]
+    },
+    options: {
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#e8ecf7', boxWidth:12, font:{size:10} } },
+        tooltip:{ mode:'index', intersect:false }
+      },
+      scales:{
+        x:{ ticks:{ color:'#9aa5c0' }, grid:{ color:'rgba(255,255,255,.05)' } },
+        y:{ beginAtZero:true, ticks:{ color:'#9aa5c0', precision:0 }, grid:{ color:'rgba(255,255,255,.05)' }, title:{display:true,text:'Bugs por ciclo',color:'#9aa5c0'} },
+        y1:{ beginAtZero:true, position:'right', ticks:{ color:'#5b8cff', precision:0 }, grid:{ drawOnChartArea:false }, title:{display:true,text:'Críticos abertos (nível)',color:'#5b8cff'} }
+      }
+    }
+  });
+}
+
+function buildTotalChart(canvas, key, labels, cycles){
+  if(!canvas) return;
+  if(charts2[key]){ charts2[key].destroy(); }
+
+  const totals = cycles.map(c => bugTotal(c));
+
+  charts2[key] = new Chart(canvas, {
+    data: {
+      labels,
+      datasets: [
+        { type:'bar', label:'Total de Bugs', data: totals, backgroundColor:'#7c5bff' },
+        { type:'line', label:'Nível de Bugs por Ciclo', data: totals, borderColor:'#f5c445', backgroundColor:'#f5c445', tension:.3, pointRadius:4, borderWidth:2 },
+      ]
+    },
+    options: {
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#e8ecf7', boxWidth:12, font:{size:10} } },
+        tooltip:{ mode:'index', intersect:false }
+      },
+      scales:{
+        x:{ ticks:{ color:'#9aa5c0' }, grid:{ color:'rgba(255,255,255,.05)' } },
+        y:{ beginAtZero:true, ticks:{ color:'#9aa5c0', precision:0 }, grid:{ color:'rgba(255,255,255,.05)' }, title:{display:true,text:'Bugs por ciclo',color:'#9aa5c0'} }
+      }
+    }
+  });
+}
+
+// ---------- Rendering: Tabelas ----------
+function populateTableFilters(){
+  const project = getCurrentProject();
+  const sprintSel = document.getElementById('tblSprintFilter');
+  const cardSel = document.getElementById('tblCardFilter');
+
+  sprintSel.innerHTML = '<option value="">Todas as Sprints</option>' +
+    project.sprints.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  sprintSel.value = tblFilters.sprintId;
+
+  let cardOptions = [];
+  project.sprints.forEach(s=>{
+    if(tblFilters.sprintId && s.id !== tblFilters.sprintId) return;
+    s.cards.forEach(c=> cardOptions.push({id:c.id, label: tblFilters.sprintId ? c.name : `${s.name} / ${c.name}`}));
+  });
+  cardSel.innerHTML = '<option value="">Todos os Cards</option>' +
+    cardOptions.map(o=>`<option value="${o.id}">${escapeHtml(o.label)}</option>`).join('');
+
+  if(cardOptions.some(o=>o.id===tblFilters.cardId)){
+    cardSel.value = tblFilters.cardId;
+  } else {
+    cardSel.value = '';
+    tblFilters.cardId = '';
+  }
+}
+
+function getSprintRows(matchingCards, cycleFilter){
+  const rows = [];
+  matchingCards.forEach(card => {
+    card.cycles.forEach((c,i) => {
+      const idx = i+1;
+      if(cycleFilter && idx !== cycleFilter) return;
+      rows.push({ cardName: card.name, index: idx, elapsedMs: c.elapsedMs, bugs: c.bugs, melhorias: c.melhorias, finishedAt: c.finishedAt });
+    });
+  });
+  rows.sort((a,b) => a.finishedAt - b.finishedAt);
+  return rows;
+}
+
+function buildSprintSummaryTable(rows){
+  if(rows.length === 0){
+    return `<div class="empty-state-sm">Nenhum ciclo encontrado nesta Sprint com os filtros atuais.</div>`;
+  }
+
+  const totals = rows.reduce((acc, r) => {
+    acc.critico += r.bugs.critico;
+    acc.bloqueado += r.bugs.bloqueado;
+    acc.medio += r.bugs.medio;
+    acc.baixo += r.bugs.baixo;
+    acc.melhorias += r.melhorias;
+    acc.elapsedMs += r.elapsedMs;
+    return acc;
+  }, {critico:0,bloqueado:0,medio:0,baixo:0,melhorias:0,elapsedMs:0});
+  const totalBugs = totals.critico + totals.bloqueado + totals.medio + totals.baixo;
+
+  const bodyRows = rows.map(r => `
+    <tr>
+      <td>${escapeHtml(r.cardName)}</td>
+      <td>Ciclo ${r.index}</td>
+      <td>${fmtTime(r.elapsedMs)}</td>
+      <td>
+        ${r.bugs.critico? `<span class="badge badge-critico">Crít ${r.bugs.critico}</span>`:''}
+        ${r.bugs.bloqueado? `<span class="badge badge-bloqueado">Bloq ${r.bugs.bloqueado}</span>`:''}
+        ${r.bugs.medio? `<span class="badge badge-medio">Méd ${r.bugs.medio}</span>`:''}
+        ${r.bugs.baixo? `<span class="badge badge-baixo">Baixo ${r.bugs.baixo}</span>`:''}
+        <span style="color:var(--text-dim);margin-left:6px;">(total ${r.bugs.critico+r.bugs.bloqueado+r.bugs.medio+r.bugs.baixo})</span>
+      </td>
+      <td>${r.melhorias}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <table class="sprint-summary-table">
+      <thead>
+        <tr><th>Card</th><th>Ciclo</th><th>Tempo do Ciclo</th><th>Bugs Abertos</th><th>Melhorias Abertas</th></tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2">Total da Sprint</td>
+          <td>${fmtTime(totals.elapsedMs)}</td>
+          <td>
+            ${totals.critico? `<span class="badge badge-critico">Crít ${totals.critico}</span>`:''}
+            ${totals.bloqueado? `<span class="badge badge-bloqueado">Bloq ${totals.bloqueado}</span>`:''}
+            ${totals.medio? `<span class="badge badge-medio">Méd ${totals.medio}</span>`:''}
+            ${totals.baixo? `<span class="badge badge-baixo">Baixo ${totals.baixo}</span>`:''}
+            <span style="color:var(--text-dim);margin-left:6px;">(total ${totalBugs})</span>
+          </td>
+          <td>${totals.melhorias}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+}
+
+function renderTablesView(){
+  const project = getCurrentProject();
+  populateTableFilters();
+
+  const term = tblFilters.search.trim().toLowerCase();
+  const cycleFilter = tblFilters.cycle ? parseInt(tblFilters.cycle) : null;
+
+  const result = document.getElementById('tablesResult');
+  result.innerHTML = '';
+  let anyRendered = false;
+
+  project.sprints.forEach(sprint => {
+    if(tblFilters.sprintId && sprint.id !== tblFilters.sprintId) return;
+
+    const matchingCards = sprint.cards.filter(card => {
+      if(tblFilters.cardId && card.id !== tblFilters.cardId) return false;
+      if(term && !(sprint.name.toLowerCase().includes(term) || card.name.toLowerCase().includes(term))) return false;
+      return true;
+    });
+    if(matchingCards.length === 0) return;
+
+    anyRendered = true;
+    const sprintRows = getSprintRows(matchingCards, cycleFilter);
+    const isCollapsed = tblCollapsedSprints.has(sprint.id);
+
+    const groupEl = document.createElement('div');
+    groupEl.className = 'sprint-table-group';
+    groupEl.dataset.sprintId = sprint.id;
+    groupEl.innerHTML = `
+      <div class="sprint-table-group-title" data-role="toggle-sprint-table" title="Clique para recolher/expandir esta Sprint">
+        <span class="collapse-icon">${isCollapsed ? '▸' : '▾'}</span>
+        <span class="tag">Sprint</span>
+        ${escapeHtml(sprint.name)}
+        <span class="count-hint">(${matchingCards.length} card${matchingCards.length!==1?'s':''} · visão geral)</span>
+      </div>
+    `;
+    result.appendChild(groupEl);
+
+    if(isCollapsed) return;
+
+    const bodyWrap = document.createElement('div');
+    bodyWrap.innerHTML = `
+      ${buildSprintSummaryTable(sprintRows)}
+      <div class="charts-grid" style="margin-top:16px;">
+        <div>
+          <div class="section-title">Visão da Sprint · Bugs por Prioridade &amp; Nível de Críticos Abertos</div>
+          <div class="chart-wrap"><canvas data-role="sprint-chart-priority"></canvas></div>
+        </div>
+        <div>
+          <div class="section-title">Visão da Sprint · Total de Bugs &amp; Nível de Bugs por Ciclo</div>
+          <div class="chart-wrap"><canvas data-role="sprint-chart-total"></canvas></div>
+        </div>
+      </div>
+    `;
+    while(bodyWrap.firstChild) groupEl.appendChild(bodyWrap.firstChild);
+
+    const sprintLabels = sprintRows.map(r => `${r.cardName} · C${r.index}`);
+    buildPriorityChart(groupEl.querySelector('[data-role="sprint-chart-priority"]'), `sprint-${sprint.id}`, sprintLabels, sprintRows);
+    buildTotalChart(groupEl.querySelector('[data-role="sprint-chart-total"]'), `sprint-${sprint.id}`, sprintLabels, sprintRows);
+
+    matchingCards.forEach(card => {
+      let cycles = card.cycles.map((c,i) => ({...c, index:i+1}));
+      if(cycleFilter){
+        cycles = cycles.filter(c => c.index === cycleFilter);
+        if(cycles.length === 0) return;
+      }
+
+      const rows = cycles.length ? cycles.map(c => `
+        <tr>
+          <td>Ciclo ${c.index}</td>
+          <td>${fmtTime(c.elapsedMs)}</td>
+          <td>
+            ${c.bugs.critico? `<span class="badge badge-critico">Crít ${c.bugs.critico}</span>`:''}
+            ${c.bugs.bloqueado? `<span class="badge badge-bloqueado">Bloq ${c.bugs.bloqueado}</span>`:''}
+            ${c.bugs.medio? `<span class="badge badge-medio">Méd ${c.bugs.medio}</span>`:''}
+            ${c.bugs.baixo? `<span class="badge badge-baixo">Baixo ${c.bugs.baixo}</span>`:''}
+            ${bugTotal(c)===0? '<span style="color:var(--text-dim)">0</span>':''}
+            <span style="color:var(--text-dim);margin-left:6px;">(total ${bugTotal(c)})</span>
+          </td>
+          <td>${c.melhorias}</td>
+        </tr>
+      `).join('') : `<tr><td colspan="4" style="color:var(--text-dim);text-align:center;">Nenhum ciclo finalizado ainda.</td></tr>`;
+
+      const cardCollapsed = tblCollapsedCards.has(card.id);
+
+      const block = document.createElement('div');
+      block.className = 'table-block';
+      block.dataset.cardId = card.id;
+      block.innerHTML = `
+        <div class="table-block-title" data-role="toggle-card-table" title="Clique para recolher/expandir este Card">
+          <span class="collapse-icon">${cardCollapsed ? '▸' : '▾'}</span>
+          <span class="crumb-sprint">${escapeHtml(sprint.name)}</span>
+          <span class="crumb-sep">›</span>
+          <span>${escapeHtml(card.name)}</span>
+        </div>
+      `;
+      groupEl.appendChild(block);
+
+      if(cardCollapsed) return;
+
+      const cardBodyWrap = document.createElement('div');
+      cardBodyWrap.innerHTML = `
+        <table>
+          <thead><tr><th>Ciclo</th><th>Tempo do Ciclo</th><th>Bugs Abertos</th><th>Melhorias Abertas</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="charts-grid" style="margin-top:16px;">
+          <div>
+            <div class="section-title">Bugs por Prioridade &amp; Nível de Críticos Abertos</div>
+            <div class="chart-wrap"><canvas data-role="chart-priority"></canvas></div>
+          </div>
+          <div>
+            <div class="section-title">Total de Bugs &amp; Nível de Bugs por Ciclo</div>
+            <div class="chart-wrap"><canvas data-role="chart-total"></canvas></div>
+          </div>
+        </div>
+      `;
+      while(cardBodyWrap.firstChild) block.appendChild(cardBodyWrap.firstChild);
+
+      const cardLabels = card.cycles.map((c,i) => `Ciclo ${i+1}`);
+      buildPriorityChart(block.querySelector('[data-role="chart-priority"]'), card.id, cardLabels, card.cycles);
+      buildTotalChart(block.querySelector('[data-role="chart-total"]'), card.id, cardLabels, card.cycles);
+    });
+  });
+
+  if(!anyRendered){
+    result.innerHTML = `<div class="empty-state">Nenhum resultado para os filtros selecionados.</div>`;
+  }
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ---------- Timer tick (only updates displays, no full re-render) ----------
+setInterval(() => {
+  const project = getCurrentProject();
+  if(!project) return;
+  project.sprints.forEach(sprint => {
+    sprint.cards.forEach(card => {
+      if(card.active && card.active.status === 'running'){
+        const displayEl = document.querySelector(`.card[data-card-id="${card.id}"] [data-role="timer-display"]`);
+        if(displayEl) displayEl.textContent = fmtTime(getElapsed(card));
+      }
+    });
+  });
+}, 500);
+
+// ---------- Event delegation ----------
+document.getElementById('projectSelect').addEventListener('change', (e) => switchProject(e.target.value));
+document.getElementById('btnNewProject').addEventListener('click', addProject);
+document.getElementById('btnDeleteProject').addEventListener('click', deleteCurrentProject);
+document.getElementById('btnRenameProject').addEventListener('click', () => {
+  const p = getCurrentProject();
+  const name = prompt('Novo nome do projeto:', p.name);
+  if(name !== null) renameProject(name.trim());
+});
+
+document.getElementById('btnNotify').addEventListener('click', requestNotificationPermission);
+document.getElementById('btnNewSprint').addEventListener('click', addSprint);
+document.getElementById('btnExport').addEventListener('click', exportJSON);
+document.getElementById('btnImportTrigger').addEventListener('click', () => document.getElementById('btnImport').click());
+document.getElementById('btnImport').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(file) importJSON(file);
+  e.target.value = '';
+});
+document.getElementById('btnCancelFinish').addEventListener('click', closeFinishModal);
+document.getElementById('btnConfirmFinish').addEventListener('click', confirmFinish);
+
+document.getElementById('tabPainel').addEventListener('click', () => switchView('painel'));
+document.getElementById('tabTabelas').addEventListener('click', () => switchView('tabelas'));
+
+document.getElementById('mainSearch').addEventListener('input', (e) => {
+  mainSearchTerm = e.target.value.trim().toLowerCase();
+  render();
+});
+document.getElementById('btnExpandAll').addEventListener('click', () => setAllCollapsed(false));
+document.getElementById('btnCollapseAll').addEventListener('click', () => setAllCollapsed(true));
+
+document.getElementById('tblSearch').addEventListener('input', (e) => {
+  tblFilters.search = e.target.value;
+  renderTablesView();
+});
+document.getElementById('tblSprintFilter').addEventListener('change', (e) => {
+  tblFilters.sprintId = e.target.value;
+  tblFilters.cardId = '';
+  renderTablesView();
+});
+document.getElementById('tblCardFilter').addEventListener('change', (e) => {
+  tblFilters.cardId = e.target.value;
+  renderTablesView();
+});
+document.getElementById('tblCycleFilter').addEventListener('input', (e) => {
+  tblFilters.cycle = e.target.value;
+  renderTablesView();
+});
+document.getElementById('btnClearFilters').addEventListener('click', () => {
+  tblFilters = { search:'', sprintId:'', cardId:'', cycle:'' };
+  document.getElementById('tblSearch').value = '';
+  document.getElementById('tblCycleFilter').value = '';
+  renderTablesView();
+});
+
+document.getElementById('tablesResult').addEventListener('click', (e) => {
+  const sprintToggle = e.target.closest('[data-role="toggle-sprint-table"]');
+  if(sprintToggle){
+    const groupEl = e.target.closest('.sprint-table-group');
+    if(!groupEl) return;
+    const sprintId = groupEl.dataset.sprintId;
+    if(tblCollapsedSprints.has(sprintId)) tblCollapsedSprints.delete(sprintId);
+    else tblCollapsedSprints.add(sprintId);
+    renderTablesView();
+    return;
+  }
+
+  const cardToggle = e.target.closest('[data-role="toggle-card-table"]');
+  if(cardToggle){
+    const blockEl = e.target.closest('.table-block');
+    if(!blockEl) return;
+    const cardId = blockEl.dataset.cardId;
+    if(tblCollapsedCards.has(cardId)) tblCollapsedCards.delete(cardId);
+    else tblCollapsedCards.add(cardId);
+    renderTablesView();
+  }
+});
+
+document.getElementById('sprintsContainer').addEventListener('click', (e) => {
+  const roleEl = e.target.closest('[data-role]');
+  const role = roleEl ? roleEl.dataset.role : null;
+  if(!role) return;
+
+  const sprintEl = e.target.closest('.sprint');
+  const sprintId = sprintEl ? sprintEl.dataset.sprintId : null;
+
+  if(role === 'add-card') return addCard(sprintId);
+  if(role === 'delete-sprint') return deleteSprint(sprintId);
+  if(role === 'toggle-sprint') return toggleSprintCollapse(sprintId);
+
+  const cardEl = e.target.closest('.card');
+  if(!cardEl) return;
+  const cardId = cardEl.dataset.cardId;
+
+  if(role === 'start') startCycle(sprintId, cardId);
+  else if(role === 'pause' || role === 'resume') pauseResume(sprintId, cardId);
+  else if(role === 'finish') openFinishModal(sprintId, cardId);
+  else if(role === 'delete-card') deleteCard(sprintId, cardId);
+  else if(role === 'toggle-card') toggleCardCollapse(sprintId, cardId);
+});
+
+document.getElementById('sprintsContainer').addEventListener('change', (e) => {
+  if(e.target.dataset.role === 'rename-sprint'){
+    const sprintEl = e.target.closest('.sprint');
+    renameSprint(sprintEl.dataset.sprintId, e.target.value.trim());
+  } else if(e.target.dataset.role === 'rename-card'){
+    const cardEl = e.target.closest('.card');
+    renameCard(cardEl.dataset.sprintId, cardEl.dataset.cardId, e.target.value.trim());
+  }
+});
+
+// ---------- PWA: service worker ----------
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+// ---------- Init ----------
+initApp();
+</script>
+</body>
+</html>
