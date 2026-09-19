@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ciclo-teste-v2';
+const CACHE_NAME = 'ciclo-teste-v3';
 const APP_SHELL = [
   './',
   './index.html',
